@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>OldTube</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #0c0c0e;
+  --surface:    #18181c;
+  --surface-hi: #242428;
+  --border:     rgba(255,255,255,0.07);
+  --text:       #f0f0f2;
+  --muted:      #78788a;
+  --dim:        #3a3a46;
+  --accent:     #f05a28;
+  --success:    #3dd68c;
+  --radius:     14px;
+  --radius-sm:  10px;
+  --font:       'Noto Sans JP', -apple-system, 'Hiragino Sans', sans-serif;
+  --safe-top:   env(safe-area-inset-top, 0px);
+  --safe-btm:   env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+}
+
+.view { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+.view.active { display: flex; }
+
+/* Header */
+.hdr {
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(var(--safe-top) + 14px) 18px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.hdr-logo { font-size: 21px; font-weight: 700; letter-spacing: -1px; flex: 1; }
+.hdr-logo em { color: var(--accent); font-style: normal; }
+.hdr-title { flex: 1; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface-hi); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text); font-size: 17px; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-icon:active { opacity: 0.7; }
+.btn-icon:disabled { opacity: 0.35; pointer-events: none; }
+
+/* Scroll */
+.scroll {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px 16px;
+}
+.scroll::-webkit-scrollbar { display: none; }
+
+/* Bottom bar */
+.btm {
+  padding: 12px 16px calc(var(--safe-btm) + 12px);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0; background: var(--bg);
+}
+
+/* Buttons */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; border-radius: var(--radius-sm);
+  padding: 15px 20px;
+  font-size: 15px; font-weight: 600; font-family: var(--font);
+  cursor: pointer; width: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { opacity: 0.75; }
+.btn:disabled { opacity: 0.35; pointer-events: none; }
+.btn + .btn { margin-top: 8px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-ghost   { background: var(--surface-hi); color: var(--text); }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+.nav-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.nav-row .btn { margin-top: 0; }
+
+/* Input */
+.field { margin-bottom: 18px; }
+.label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+.input {
+  width: 100%; background: var(--surface-hi); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px 16px;
+  font-size: 15px; font-family: var(--font); color: var(--text); outline: none;
+}
+.input:focus { border-color: var(--accent); }
+.input::placeholder { color: var(--dim); }
+
+/* Error */
+.err { background: rgba(240,90,40,0.1); border: 1px solid rgba(240,90,40,0.25); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: #f09070; margin-bottom: 16px; display: none; }
+.err.show { display: block; }
+
+/* Info card */
+.info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 18px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+.info-card code { color: var(--accent); font-size: 12px; }
+.info-card a { color: var(--accent); text-decoration: none; }
+
+/* Channel card */
+.ch-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 15px; margin-bottom: 10px;
+  display: flex; gap: 13px; align-items: flex-start;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.ch-card:active { background: var(--surface-hi); }
+.ch-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--surface-hi); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.ch-body { flex: 1; min-width: 0; }
+.ch-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.ch-meta { font-size: 12px; color: var(--muted); margin-bottom: 9px; }
+.track { height: 3px; background: var(--dim); border-radius: 99px; overflow: hidden; }
+.fill  { height: 100%; background: var(--accent); border-radius: 99px; }
+.ch-del { width: 28px; height: 28px; border-radius: 50%; background: none; border: none; color: var(--dim); font-size: 15px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
+.ch-del:active { color: var(--accent); }
+
+/* Empty */
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 48px 24px; gap: 10px; min-height: 300px; }
+.empty-icon { font-size: 52px; margin-bottom: 6px; }
+.empty-h { font-size: 18px; font-weight: 700; }
+.empty-p { font-size: 14px; color: var(--muted); max-width: 240px; line-height: 1.65; }
+
+/* Loading */
+.loading-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 24px; gap: 18px; }
+.spinner { width: 44px; height: 44px; border: 3px solid var(--dim); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-n { font-size: 42px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.loading-lbl { font-size: 14px; color: var(--muted); }
+.loading-sub { font-size: 12px; color: var(--dim); }
+
+/* Player */
+.video-wrap { position: relative; width: 100%; padding-bottom: 56.25%; background: #000; flex-shrink: 0; }
+.video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+.v-info { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 15px 16px 10px; }
+.v-info::-webkit-scrollbar { display: none; }
+.v-counter { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+.v-track { height: 2px; background: var(--dim); border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
+.v-fill  { height: 100%; background: var(--accent); border-radius: 99px; }
+.v-date  { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+.v-title { font-size: 16px; font-weight: 600; line-height: 1.4; }
+.p-controls { padding: 12px 16px calc(var(--safe-btm) + 12px); border-top: 1px solid var(--border); flex-shrink: 0; background: var(--bg); display: flex; flex-direction: column; gap: 8px; }
+
+/* Toast */
+#toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--surface-hi); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 16px; font-size: 13px; font-weight: 500; white-space: nowrap; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 200; }
+#toast.show { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- CHANNELS -->
+  <div class="view" id="v-channels">
+    <div class="hdr">
+      <div class="hdr-logo">Old<em>Tube</em></div>
+      <button class="btn-icon" id="btn-settings" aria-label="設定">&#9881;</button>
+    </div>
+    <div class="scroll" id="ch-list"></div>
+    <div class="btm">
+      <button class="btn btn-primary" id="btn-add">+ チャンネルを追加</button>
+    </div>
+  </div>
+
+  <!-- ADD CHANNEL -->
+  <div class="view" id="v-add">
+    <div class="hdr">
+      <button class="btn-icon" id="btn-back-add" aria-label="戻る">&larr;</button>
+      <div class="hdr-title">チャンネルを追加</div>
+    </div>
+    <div class="scroll">
+      <div class="info-card">
+        チャンネルのURLまたは<code>@ハンドル</code>を入力してください。<br>
+        例：<code>@channelname</code> または <code>youtube.com/@channelname</code>
+      </div>
+      <div class="field">
+        <label class="label" for="add-inp">チャンネルURL / ハンドル</label>
+        <input class="input" id="add-inp" type="text"
+          placeholder="@channelname" autocomplete="off" autocorrect="off" autocapitalize="off">
+      </div>
+      <div class="err" id="add-err"></div>
+      <button class="btn btn-primary" id="btn-fetch">動画をすべて取得する</button>
+    </div>
+  </div>
+
+  <!-- SETUP -->
+  <div class="view" id="v-setup">
+    <div class="hdr">
+      <button class="btn-icon" id="btn-back-setup" aria-label="戻る">&larr;</button>
+      <div class="hdr-title">APIキーの設定</div>
+    </div>
+    <div class="scroll">
+      <div class="info-card">
+        YouTubeのデータ取得には <strong style="color:var(--text)">YouTube Data API v3</strong> のキーが必要です。<br><br>
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console でAPIキーを取得 &rarr;</a><br><br>
+        1日10,000リクエストまで無料です。
+      </div>
+      <div class="field">
+        <label class="label" for="key-inp">YouTube Data API v3 キー</label>
+        <input class="input" id="key-inp" type="text"
+          placeholder="AIzaSy..." autocomplete="off" autocorrect="off" autocapitalize="off">
+      </div>
+      <div class="err" id="key-err"></div>
+      <button class="btn btn-primary" id="btn-save-key">保存する</button>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="view" id="v-loading">
+    <div class="hdr">
+      <div class="hdr-title" style="text-align:center;flex:1;">動画を取得中...</div>
+    </div>
+    <div class="loading-body">
+      <div class="spinner"></div>
+      <div class="loading-n" id="load-n">0</div>
+      <div class="loading-lbl">本の動画を取得済み</div>
+      <div class="loading-sub">大きなチャンネルは少し時間がかかります</div>
+    </div>
+  </div>
+
+  <!-- PLAYER -->
+  <div class="view" id="v-player">
+    <div class="hdr">
+      <button class="btn-icon" id="btn-back-player" aria-label="戻る">&larr;</button>
+      <div class="hdr-title" id="p-ch-name"></div>
+      <button class="btn-icon" id="btn-refresh" aria-label="更新">&#8635;</button>
+    </div>
+    <div class="video-wrap">
+      <iframe id="v-iframe"
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        allowfullscreen></iframe>
+    </div>
+    <div class="v-info">
+      <div class="v-counter" id="p-counter">1 / 1 本目</div>
+      <div class="v-track"><div class="v-fill" id="p-fill" style="width:0%"></div></div>
+      <div class="v-date" id="p-date"></div>
+      <div class="v-title" id="p-title"></div>
+    </div>
+    <div class="p-controls">
+      <div class="nav-row">
+        <button class="btn btn-ghost" id="btn-prev">&larr; 前の動画</button>
+        <button class="btn btn-primary" id="btn-next">次の動画 &rarr;</button>
+      </div>
+      <button class="btn btn-outline" id="btn-yt">YouTubeで開く</button>
+    </div>
+  </div>
+
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+const YT_API    = 'https://www.googleapis.com/youtube/v3';
+const STORE     = 'oldtube_v4';
+const WATCH_THRESHOLD = 300; // seconds (5 min) of actual playback before a video counts as "watched"
+
+let db  = { apiKey: '', channels: [] };
+let curChId    = null;
+let toastTimer = null;
+
+// ── Watch tracking (foreground-time based; see note near startTracking()) ──
+let currentLoadedVideoId = null;
+let trackInterval        = null;
+let currentTrackedVideo  = null;
+let tickCount             = 0;
+
+function loadDb() {
+  try { db = Object.assign(db, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch(e) {}
+}
+function saveDb() {
+  try { localStorage.setItem(STORE, JSON.stringify(db)); }
+  catch(e) { toast('保存に失敗しました（ストレージ容量を確認してください）'); }
+}
+function show(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function toast(msg, dur) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { el.classList.remove('show'); }, dur || 3000);
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric' });
+}
+function getCh() { return db.channels.find(function(c){ return c.id === curChId; }); }
+
+// ── Watched-state helpers ──
+function isWatched(v) {
+  return (v.watchedSeconds || 0) >= WATCH_THRESHOLD;
+}
+function unwatchedIndices(ch) {
+  var arr = [];
+  for (var i = 0; i < ch.videos.length; i++) {
+    if (!isWatched(ch.videos[i])) arr.push(i);
+  }
+  return arr;
+}
+
+// ── Watch tracking ──
+// NOTE: the video plays in a plain embedded iframe (no YouTube JS Player API),
+// because the JS API needs a real https origin to talk back to the page, and
+// that handshake fails when this app is opened as a local file (file://) —
+// every video showed a broken-player error. A plain iframe has no such
+// requirement and plays reliably from a local file. The trade-off: we can no
+// longer read YouTube's actual play/pause state, so "watched" time is
+// approximated as time spent with this video's screen open and the app in
+// the foreground (tracking pauses automatically while the app/tab is hidden).
+function startTracking() {
+  if (trackInterval) return;
+  trackInterval = setInterval(function() {
+    if (document.hidden) return;
+    if (!currentTrackedVideo) return;
+    currentTrackedVideo.watchedSeconds = (currentTrackedVideo.watchedSeconds || 0) + 1;
+    tickCount++;
+    if (tickCount % 5 === 0) saveDb();
+  }, 1000);
+}
+function stopTracking() {
+  if (trackInterval) { clearInterval(trackInterval); trackInterval = null; }
+  saveDb();
+}
+document.addEventListener('visibilitychange', function() { if (document.hidden) saveDb(); });
+window.addEventListener('pagehide', stopTracking);
+window.addEventListener('beforeunload', stopTracking);
+
+async function ytGet(ep, params) {
+  var url = new URL(YT_API + '/' + ep);
+  var p = Object.assign({}, params, { key: db.apiKey });
+  Object.keys(p).forEach(function(k){ url.searchParams.set(k, p[k]); });
+  var res = await fetch(url.toString());
+  var json = await res.json();
+  if (json.error) throw new Error(json.error.message || 'YouTube APIエラー');
+  return json;
+}
+
+async function resolveChannel(raw) {
+  raw = raw.trim();
+  var params = {};
+  var byId = raw.match(/youtube\.com\/channel\/([A-Za-z0-9_-]{24})/);
+  if (byId) {
+    params = { id: byId[1] };
+  } else {
+    var h = raw.replace(/^https?:\/\/(www\.)?youtube\.com\//,'').replace(/^@/,'').split(/[/?&#]/)[0].trim();
+    params = { forHandle: '@' + h };
+  }
+  var data = await ytGet('channels', Object.assign({ part: 'contentDetails,snippet' }, params));
+  if (!data.items || !data.items.length) throw new Error('チャンネルが見つかりませんでした');
+  var ch = data.items[0];
+  return {
+    id: ch.id,
+    name: ch.snippet.title,
+    thumbnail: (ch.snippet.thumbnails.default || ch.snippet.thumbnails.medium || {}).url || '',
+    uploadPlaylistId: ch.contentDetails.relatedPlaylists.uploads,
+    videos: [], currentIndex: 0, lastFetched: null
+  };
+}
+
+async function fetchAll(playlistId, onProgress) {
+  var vids = [], page = null;
+  do {
+    var p = { part: 'snippet', playlistId: playlistId, maxResults: 50 };
+    if (page) p.pageToken = page;
+    var data = await ytGet('playlistItems', p);
+    (data.items || []).forEach(function(item) {
+      var s = item.snippet;
+      var vid = s && s.resourceId && s.resourceId.videoId;
+      if (vid && s.title !== 'Deleted video' && s.title !== 'Private video') {
+        vids.push({ id: vid, title: s.title, publishedAt: s.publishedAt, watchedSeconds: 0 });
+      }
+    });
+    if (onProgress) onProgress(vids.length);
+    page = data.nextPageToken || null;
+  } while (page);
+  vids.sort(function(a,b){ return new Date(a.publishedAt) - new Date(b.publishedAt); });
+  return vids;
+}
+
+async function fetchNew(playlistId, knownIds) {
+  var newVids = [], page = null, done = false;
+  outer: do {
+    var p = { part: 'snippet', playlistId: playlistId, maxResults: 50 };
+    if (page) p.pageToken = page;
+    var data = await ytGet('playlistItems', p);
+    var items = data.items || [];
+    for (var i = 0; i < items.length; i++) {
+      var s = items[i].snippet;
+      var vid = s && s.resourceId && s.resourceId.videoId;
+      if (!vid) continue;
+      if (knownIds.has(vid)) { done = true; break outer; }
+      if (s.title !== 'Deleted video') newVids.push({ id: vid, title: s.title, publishedAt: s.publishedAt, watchedSeconds: 0 });
+    }
+    page = data.nextPageToken || null;
+  } while (page && !done);
+  newVids.sort(function(a,b){ return new Date(a.publishedAt) - new Date(b.publishedAt); });
+  return newVids;
+}
+
+function renderChannels() {
+  var el = document.getElementById('ch-list');
+  if (!db.channels.length) {
+    el.innerHTML =
+      '<div class="empty">' +
+      '<div class="empty-icon">&#128250;</div>' +
+      '<div class="empty-h">チャンネルがありません</div>' +
+      '<div class="empty-p">好きなYouTubeチャンネルを追加すると、最初の動画から順番に見られます</div>' +
+      '</div>';
+    return;
+  }
+  el.innerHTML = db.channels.map(function(ch) {
+    var total     = ch.videos.length;
+    var unwatched = unwatchedIndices(ch).length;
+    var watched   = total - unwatched;
+    var pct       = total ? Math.round((watched / total) * 100) : 0;
+    var done      = total > 0 && unwatched === 0;
+    var meta      = total
+      ? (done ? '&#10003; すべて視聴済み' : '未視聴 ' + unwatched + ' / ' + total + ' 本')
+      : '動画なし';
+    var metaStyle = done ? ' style="color:var(--success);"' : '';
+    var fillStyle = 'width:' + pct + '%;' + (done ? 'background:var(--success);' : '');
+    var avatarHtml = ch.thumbnail
+      ? '<img class="ch-avatar" src="' + esc(ch.thumbnail) + '" alt="" loading="lazy" style="display:block;">'
+      : '<div class="ch-avatar">&#128250;</div>';
+    return '<div class="ch-card" onclick="openPlayer(\'' + esc(ch.id) + '\')">' +
+      avatarHtml +
+      '<div class="ch-body">' +
+        '<div class="ch-name">' + esc(ch.name) + '</div>' +
+        '<div class="ch-meta"' + metaStyle + '>' + meta + '</div>' +
+        '<div class="track"><div class="fill" style="' + fillStyle + '"></div></div>' +
+      '</div>' +
+      '<button class="ch-del" onclick="delChannel(event,\'' + esc(ch.id) + '\')" aria-label="削除">&#10005;</button>' +
+      '</div>';
+  }).join('');
+}
+
+function delChannel(e, id) {
+  e.stopPropagation();
+  if (!confirm('このチャンネルを削除しますか？')) return;
+  db.channels = db.channels.filter(function(c){ return c.id !== id; });
+  saveDb();
+  renderChannels();
+}
+
+async function handleFetch() {
+  var inp   = document.getElementById('add-inp');
+  var errEl = document.getElementById('add-err');
+  var btn   = document.getElementById('btn-fetch');
+  errEl.classList.remove('show');
+  if (!inp.value.trim()) {
+    errEl.textContent = 'URLまたはハンドルを入力してください';
+    errEl.classList.add('show');
+    return;
+  }
+  btn.disabled = true; btn.textContent = '取得中...';
+  try {
+    show('v-loading');
+    document.getElementById('load-n').textContent = '0';
+    var ch = await resolveChannel(inp.value);
+    if (db.channels.find(function(c){ return c.id === ch.id; })) {
+      show('v-add');
+      errEl.textContent = 'このチャンネルはすでに追加されています';
+      errEl.classList.add('show');
+      btn.disabled = false; btn.textContent = '動画をすべて取得する';
+      return;
+    }
+    ch.videos = await fetchAll(ch.uploadPlaylistId, function(n){
+      document.getElementById('load-n').textContent = n;
+    });
+    ch.lastFetched = new Date().toISOString();
+    db.channels.push(ch);
+    saveDb();
+    inp.value = '';
+    renderChannels();
+    show('v-channels');
+    toast(ch.name + ' を追加しました（' + ch.videos.length + '本）');
+  } catch(err) {
+    show('v-add');
+    errEl.textContent = err.message || '取得に失敗しました';
+    errEl.classList.add('show');
+  }
+  btn.disabled = false; btn.textContent = '動画をすべて取得する';
+}
+
+function openPlayer(id) {
+  curChId = id;
+  var ch = getCh();
+  if (!ch || !ch.videos.length) return;
+  var uIdx = unwatchedIndices(ch);
+  if (!uIdx.length) { toast('すべての動画を視聴済みです'); return; }
+  if (uIdx.indexOf(ch.currentIndex) === -1) {
+    var next = uIdx.filter(function(i){ return i >= ch.currentIndex; })[0];
+    ch.currentIndex = (next !== undefined) ? next : uIdx[0];
+    saveDb();
+  }
+  renderPlayer();
+  show('v-player');
+}
+
+function renderPlayer() {
+  var ch = getCh();
+  if (!ch || !ch.videos.length) return;
+  var vid  = ch.videos[ch.currentIndex];
+  var uIdx = unwatchedIndices(ch);
+  var pos  = uIdx.indexOf(ch.currentIndex);
+  var rank = pos + 1;
+  var totalUnwatched = uIdx.length;
+  var pct  = totalUnwatched > 1 ? Math.round((pos / (totalUnwatched - 1)) * 100) : 0;
+
+  document.getElementById('p-ch-name').textContent = ch.name;
+  document.getElementById('p-counter').textContent = rank + ' / ' + totalUnwatched + ' 本目';
+  document.getElementById('p-fill').style.width    = pct + '%';
+  document.getElementById('p-date').textContent    = fmtDate(vid.publishedAt);
+  document.getElementById('p-title').textContent   = vid.title;
+
+  if (currentLoadedVideoId !== vid.id) {
+    stopTracking();
+    document.getElementById('v-iframe').src =
+      'https://www.youtube.com/embed/' + vid.id + '?autoplay=1&rel=0&modestbranding=1&playsinline=1';
+    currentLoadedVideoId = vid.id;
+    currentTrackedVideo = vid;
+    startTracking();
+  } else {
+    currentTrackedVideo = vid;
+    if (!trackInterval) startTracking();
+  }
+
+  document.getElementById('btn-prev').disabled = pos <= 0;
+  document.getElementById('btn-next').disabled = pos === -1 || pos >= totalUnwatched - 1;
+  document.getElementById('btn-yt').onclick = function() {
+    window.open('https://www.youtube.com/watch?v=' + vid.id, '_blank');
+  };
+}
+
+function step(delta) {
+  var ch = getCh();
+  if (!ch) return;
+  var uIdx = unwatchedIndices(ch);
+  var pos  = uIdx.indexOf(ch.currentIndex);
+  var newPos = pos + delta;
+  if (newPos < 0 || newPos >= uIdx.length) return;
+  stopTracking();
+  ch.currentIndex = uIdx[newPos];
+  saveDb();
+  renderPlayer();
+}
+
+async function handleRefresh() {
+  var ch  = getCh();
+  var btn = document.getElementById('btn-refresh');
+  if (!ch) return;
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    var known = new Set(ch.videos.map(function(v){ return v.id; }));
+    var newV  = await fetchNew(ch.uploadPlaylistId, known);
+    if (newV.length) {
+      var merged = ch.videos.concat(newV);
+      merged.sort(function(a,b){ return new Date(a.publishedAt) - new Date(b.publishedAt); });
+      ch.videos = merged;
+      ch.lastFetched = new Date().toISOString();
+      saveDb();
+      renderPlayer();
+      toast(newV.length + '本の新しい動画を追加しました');
+    } else {
+      toast('新しい動画はありません');
+    }
+  } catch(err) {
+    toast('更新に失敗しました: ' + err.message);
+  }
+  btn.disabled = false; btn.innerHTML = '&#8635;';
+}
+
+async function handleSaveKey() {
+  var inp   = document.getElementById('key-inp');
+  var errEl = document.getElementById('key-err');
+  var btn   = document.getElementById('btn-save-key');
+  errEl.classList.remove('show');
+  var key = inp.value.trim();
+  if (!key) {
+    errEl.textContent = 'APIキーを入力してください';
+    errEl.classList.add('show');
+    return;
+  }
+  btn.disabled = true; btn.textContent = '確認中...';
+  var prev = db.apiKey;
+  db.apiKey = key;
+  try {
+    await ytGet('videos', { part: 'id', id: 'dQw4w9WgXcQ' });
+    saveDb();
+    document.getElementById('btn-back-setup').style.visibility = '';
+    renderChannels();
+    show('v-channels');
+    toast('APIキーを保存しました');
+  } catch(err) {
+    db.apiKey = prev;
+    if (err.message && err.message.toLowerCase().indexOf('fetch') !== -1) {
+      errEl.textContent = 'ネットワークエラー。インターネット接続を確認してください。';
+    } else {
+      errEl.textContent = 'APIキーが無効です: ' + err.message;
+    }
+    errEl.classList.add('show');
+  }
+  btn.disabled = false; btn.textContent = '保存する';
+}
+
+function init() {
+  loadDb();
+  if (!db.apiKey) {
+    document.getElementById('btn-back-setup').style.visibility = 'hidden';
+    show('v-setup');
+  } else {
+    document.getElementById('key-inp').value = db.apiKey;
+    renderChannels();
+    show('v-channels');
+  }
+
+  document.getElementById('btn-settings').addEventListener('click', function() {
+    document.getElementById('key-inp').value = db.apiKey;
+    document.getElementById('btn-back-setup').style.visibility = '';
+    document.getElementById('key-err').classList.remove('show');
+    show('v-setup');
+  });
+  document.getElementById('btn-add').addEventListener('click', function() {
+    if (!db.apiKey) { show('v-setup'); return; }
+    document.getElementById('add-err').classList.remove('show');
+    show('v-add');
+  });
+  document.getElementById('btn-back-add').addEventListener('click', function() { show('v-channels'); });
+  document.getElementById('btn-back-setup').addEventListener('click', function() { renderChannels(); show('v-channels'); });
+  document.getElementById('btn-back-player').addEventListener('click', function() {
+    stopTracking();
+    document.getElementById('v-iframe').src = '';
+    currentLoadedVideoId = null;
+    currentTrackedVideo = null;
+    renderChannels();
+    show('v-channels');
+  });
+  document.getElementById('btn-fetch').addEventListener('click', handleFetch);
+  document.getElementById('add-inp').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleFetch(); });
+  document.getElementById('btn-save-key').addEventListener('click', handleSaveKey);
+  document.getElementById('key-inp').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleSaveKey(); });
+  document.getElementById('btn-prev').addEventListener('click', function() { step(-1); });
+  document.getElementById('btn-next').addEventListener('click', function() { step(1); });
+  document.getElementById('btn-refresh').addEventListener('click', handleRefresh);
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
